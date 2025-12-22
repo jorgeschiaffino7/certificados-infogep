@@ -1,167 +1,288 @@
-# 🚀 Guía de Despliegue en Vercel
+# 🚀 Guía de Despliegue en Vercel (Backend y Frontend Separados)
 
-Esta guía te ayudará a desplegar la aplicación de generación de certificados en Vercel.
+Esta guía te ayudará a desplegar la aplicación de generación de certificados en Vercel con backend y frontend como proyectos independientes.
 
 ## 📋 Requisitos Previos
 
 - Cuenta de Vercel (https://vercel.com)
-- Git instalado
-- Node.js 18+ instalado
+- Repositorio en GitHub con el código
+- Node.js 18+ instalado localmente
 
 ## 🏗️ Estructura del Proyecto
 
 ```
-certfificados-infogep/
-├── frontend/          # React + Vite
+certificados-infogep/
+├── frontend/          # React + Vite (Proyecto 1 en Vercel)
 │   ├── src/
 │   ├── package.json
 │   └── vercel.json
-├── backend/          # Express API
-│   ├── src/
-│   ├── package.json
-│   └── vercel.json
-└── vercel.json      # Configuración del monorepo
+└── backend/          # Express API (Proyecto 2 en Vercel)
+    ├── src/
+    ├── package.json
+    └── vercel.json
 ```
 
-## 📦 Paso 1: Preparar el Proyecto
+---
 
-### 1.1 Instalar Dependencias
+## 📦 PASO 1: Desplegar el Backend
 
-```bash
-# Frontend
-cd frontend
-npm install
+### 1.1 Crear Proyecto Backend en Vercel
 
-# Backend
-cd ../backend
-npm install
+1. Ve a https://vercel.com/new
+2. Selecciona tu repositorio: `certificados-infogep`
+3. Configura el proyecto:
+
+   **Project Name**: `certificados-infogep-backend` (o el nombre que prefieras)
+   
+   **Framework Preset**: `Other`
+   
+   **Root Directory**: Haz clic en "Edit" → Selecciona `backend` → Save
+   
+   **Build Settings**:
+   - Build Command: (dejar vacío o `npm install`)
+   - Output Directory: (dejar vacío)
+   - Install Command: `npm install`
+
+4. **NO hagas clic en Deploy todavía**
+
+### 1.2 Configurar Variables de Entorno (Opcional)
+
+Si necesitas variables de entorno para el backend:
+- Haz clic en "Environment Variables"
+- Agrega las variables necesarias (por ejemplo, `NODE_ENV=production`)
+
+### 1.3 Desplegar Backend
+
+1. Haz clic en **"Deploy"**
+2. Espera a que termine el deploy (2-5 minutos)
+3. **Copia la URL del backend** que Vercel te da (ej: `https://certificados-infogep-backend.vercel.app`)
+
+---
+
+## 🎨 PASO 2: Desplegar el Frontend
+
+### 2.1 Crear Proyecto Frontend en Vercel
+
+1. Ve nuevamente a https://vercel.com/new
+2. Selecciona el mismo repositorio: `certificados-infogep`
+3. Configura el proyecto:
+
+   **Project Name**: `certificados-infogep-frontend` (o el nombre que prefieras)
+   
+   **Framework Preset**: `Vite`
+   
+   **Root Directory**: Haz clic en "Edit" → Selecciona `frontend` → Save
+   
+   **Build Settings** (se configuran automáticamente):
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
+
+4. **NO hagas clic en Deploy todavía**
+
+### 2.2 Configurar Variable de Entorno del Frontend
+
+**MUY IMPORTANTE**: Configura la URL del backend
+
+1. Haz clic en "Environment Variables"
+2. Agrega:
+   - **Name**: `VITE_API_URL`
+   - **Value**: `https://certificados-infogep-backend.vercel.app/api/certificates`
+     (Reemplaza con la URL real de tu backend del Paso 1.3)
+   - **Environment**: Selecciona todos (Production, Preview, Development)
+
+### 2.3 Desplegar Frontend
+
+1. Haz clic en **"Deploy"**
+2. Espera a que termine el deploy (2-5 minutos)
+3. ¡Tu aplicación estará lista! Vercel te dará una URL (ej: `https://certificados-infogep-frontend.vercel.app`)
+
+---
+
+## ✅ PASO 3: Verificar el Despliegue
+
+### 3.1 Probar el Backend
+
+Visita: `https://TU-BACKEND.vercel.app`
+
+Deberías ver:
+```json
+{
+  "message": "API de Certificados funcionando correctamente",
+  "endpoints": {
+    "generateCertificates": "POST /api/certificates/generate",
+    "health": "GET /api/certificates/health"
+  }
+}
 ```
 
-### 1.2 Configurar Variables de Entorno
+### 3.2 Probar el Frontend
 
-En Vercel, necesitarás configurar las siguientes variables de entorno:
+1. Visita: `https://TU-FRONTEND.vercel.app`
+2. Deberías ver la interfaz de la aplicación
+3. Intenta generar un certificado individual para verificar que se conecta con el backend
 
-#### Para el Frontend:
-- `VITE_API_URL`: URL de tu API backend (ej: `https://tu-proyecto.vercel.app/api/certificates`)
+---
 
-## 🔧 Paso 2: Despliegue
+## 🔧 Configuración Adicional
 
-### Opción A: Desplegar desde GitHub (Recomendado)
+### Límites de Vercel (Plan Hobby/Free)
 
-1. **Sube tu código a GitHub:**
+- **Timeout**: 10 segundos (Plan Free) / 60 segundos (Plan Pro)
+- **Memoria**: 1024 MB
+- **Tamaño de archivos**: 50 MB máximo para uploads
+
+⚠️ **Nota importante sobre Puppeteer**: 
+- La generación de PDFs con Puppeteer puede tardar 5-10 segundos en cold start
+- Si el plan Free (10s timeout) no es suficiente, considera actualizar a Pro
+
+### Configurar Dominio Personalizado (Opcional)
+
+Para cada proyecto:
+1. Ve a Project Settings → Domains
+2. Agrega tu dominio personalizado
+3. Configura los DNS según las instrucciones de Vercel
+
+---
+
+## 🐛 Troubleshooting
+
+### Backend no responde o da timeout
+
+1. **Verifica los logs**:
+   - Ve a tu proyecto backend en Vercel
+   - Click en la pestaña "Functions"
+   - Revisa los logs de errores
+
+2. **Cold Start**: La primera petición siempre tarda más (5-10 segundos)
+   - Es normal en funciones serverless
+   - Las siguientes peticiones serán más rápidas
+
+3. **Timeout**: Si excede 10 segundos en plan Free:
+   - Considera actualizar a plan Pro (60s timeout)
+   - O divide las tareas grandes en lotes más pequeños
+
+### Frontend no se conecta con el Backend
+
+1. **Verifica la variable de entorno**:
+   - Ve a Project Settings → Environment Variables
+   - Asegúrate que `VITE_API_URL` tenga la URL correcta del backend
+   - Debe incluir `/api/certificates` al final
+
+2. **Redesplegar después de cambiar variables**:
+   - Los cambios en variables de entorno requieren un nuevo deploy
+   - Ve a Deployments → Click en los 3 puntos → Redeploy
+
+3. **Revisar CORS**:
+   - El backend ya tiene CORS habilitado para todos los orígenes
+   - Si tienes problemas, revisa los logs del backend
+
+### Error "Module not found" o dependencias
+
+1. **Verifica package.json**:
+   - Asegúrate que todas las dependencias estén en `dependencies` (no en `devDependencies`)
+   - Para producción, Vercel solo instala `dependencies`
+
+2. **Reinstalar node_modules localmente**:
    ```bash
-   git init
+   cd backend
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
+
+3. **Hacer commit y push**:
+   ```bash
    git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/tu-usuario/tu-repo.git
-   git push -u origin main
+   git commit -m "Fix: Actualizar dependencias"
+   git push
    ```
 
-2. **Importa el proyecto en Vercel:**
-   - Ve a https://vercel.com/new
-   - Selecciona tu repositorio de GitHub
-   - Vercel detectará automáticamente la configuración
+### Puppeteer / Chrome no funciona
 
-3. **Configura las variables de entorno:**
-   - En el panel de Vercel, ve a Settings > Environment Variables
-   - Agrega `VITE_API_URL` con el valor de tu API
-
-4. **Despliega:**
-   - Haz clic en "Deploy"
-   - Vercel construirá y desplegará automáticamente
-
-### Opción B: Desplegar con Vercel CLI
-
-1. **Instala Vercel CLI:**
-   ```bash
-   npm install -g vercel
-   ```
-
-2. **Inicia sesión:**
-   ```bash
-   vercel login
-   ```
-
-3. **Despliega el proyecto:**
-   ```bash
-   vercel
-   ```
-
-4. **Para producción:**
-   ```bash
-   vercel --prod
-   ```
-
-## 🔄 Paso 3: Actualizar la URL del Backend
-
-Después del primer despliegue:
-
-1. Vercel te dará una URL como `https://tu-proyecto.vercel.app`
-2. Ve a Settings > Environment Variables en Vercel
-3. Actualiza `VITE_API_URL` con: `https://tu-proyecto.vercel.app/api/certificates`
-4. Redespliega el frontend para que tome los cambios
-
-## ⚙️ Configuración Adicional
-
-### Límites de Vercel
-
-- **Timeout**: Las funciones serverless tienen un límite de 60 segundos (configurado en `backend/vercel.json`)
-- **Memoria**: 1024 MB por función (configurado en `backend/vercel.json`)
-- **Tamaño de archivos**: Límite de 50 MB para archivos subidos
-
-Si necesitas generar muchos certificados, considera dividir la tarea en lotes más pequeños.
-
-### Debugging
+El backend está configurado para usar `@sparticuz/chromium` en producción, que es compatible con Vercel.
 
 Si tienes problemas:
+1. Verifica que `@sparticuz/chromium` y `puppeteer-core` estén en `backend/package.json`
+2. Revisa los logs del backend para ver errores específicos de Chromium
 
-1. **Revisa los logs:**
-   - Ve a tu proyecto en Vercel
-   - Selecciona la pestaña "Functions"
-   - Haz clic en cualquier función para ver sus logs
+---
 
-2. **Variables de entorno:**
-   - Verifica que todas las variables estén configuradas correctamente
-   - Recuerda que necesitas redesplegar después de cambiar variables
+## 🔄 Actualizar la Aplicación
 
-3. **Build errors:**
-   - Revisa la pestaña "Deployments" en Vercel
-   - Haz clic en el despliegue fallido para ver los errores
+Cada vez que hagas cambios en el código:
 
-## 🧪 Probar la Aplicación
+1. **Hacer commit y push a GitHub**:
+   ```bash
+   git add .
+   git commit -m "Descripción de los cambios"
+   git push
+   ```
 
-Una vez desplegada:
+2. **Vercel desplegará automáticamente**:
+   - Ambos proyectos se actualizarán automáticamente
+   - Recibirás notificaciones de los deploys
 
-1. Visita tu URL de Vercel (ej: `https://tu-proyecto.vercel.app`)
-2. Prueba generar un certificado individual
-3. Prueba generar certificados masivos con un archivo Excel de prueba
+3. **Deploy manual** (si es necesario):
+   - Ve al proyecto en Vercel
+   - Click en Deployments → 3 puntos → Redeploy
 
-## 📝 Notas Importantes
+---
 
-- **Chromium**: El backend usa `@sparticuz/chromium` para generar PDFs en Vercel
-- **CORS**: Está configurado para aceptar peticiones desde cualquier origen
-- **Archivos temporales**: Vercel usa un sistema de archivos temporal, los archivos se eliminan después de la ejecución
-- **Cold starts**: La primera petición puede tardar más (5-10 segundos) debido al cold start de las funciones serverless
+## 📝 URLs de tu Aplicación
 
-## 🔒 Seguridad
+Después del despliegue, anota tus URLs:
 
-Para producción, considera:
+- **Backend**: `https://_____________________.vercel.app`
+- **Frontend**: `https://_____________________.vercel.app`
+- **API Base**: `https://_____________________.vercel.app/api/certificates`
 
-1. **CORS**: Limitar los orígenes permitidos en el backend
-2. **Rate limiting**: Agregar límites de peticiones
-3. **Validación**: Validar y sanitizar todos los datos de entrada
-4. **Autenticación**: Agregar autenticación si es necesario
+---
 
-## 📚 Recursos Adicionales
+## 🔒 Seguridad para Producción
+
+Considera implementar:
+
+1. **CORS específico**: Limitar orígenes en el backend
+   ```javascript
+   app.use(cors({
+     origin: 'https://tu-frontend.vercel.app'
+   }));
+   ```
+
+2. **Rate Limiting**: Limitar peticiones por IP
+3. **Validación de archivos**: Validar tamaño y tipo de archivos Excel
+4. **Autenticación**: Agregar login si es necesario
+
+---
+
+## 📚 Recursos Útiles
 
 - [Documentación de Vercel](https://vercel.com/docs)
-- [Vercel Serverless Functions](https://vercel.com/docs/concepts/functions/serverless-functions)
-- [Despliegue de Monorepos](https://vercel.com/docs/concepts/monorepos)
+- [Vercel Serverless Functions](https://vercel.com/docs/functions)
+- [Troubleshooting Vercel](https://vercel.com/docs/errors)
+- [Puppeteer en Vercel](https://github.com/Sparticuz/chromium)
 
-## 🆘 Soporte
+---
 
-Si encuentras problemas, revisa:
-- Los logs en Vercel Dashboard
-- La configuración de variables de entorno
-- Los archivos `vercel.json`
+## 📧 Resumen Rápido
+
+```bash
+# 1. Backend
+- Ir a vercel.com/new
+- Seleccionar repo: certificados-infogep
+- Root Directory: backend
+- Framework: Other
+- Deploy
+
+# 2. Frontend  
+- Ir a vercel.com/new
+- Seleccionar repo: certificados-infogep
+- Root Directory: frontend
+- Framework: Vite
+- Variable: VITE_API_URL = https://tu-backend.vercel.app/api/certificates
+- Deploy
+
+# 3. ¡Listo! 🎉
+```
+
+¿Tienes alguna pregunta? ¡No dudes en consultar! 🚀

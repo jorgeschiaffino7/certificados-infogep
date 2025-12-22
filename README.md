@@ -69,7 +69,16 @@ Sistema web para generar certificados de asistencia a cursos del Instituto de Fo
 
 ## 📦 Despliegue en Vercel
 
-Para desplegar la aplicación en Vercel, consulta la [Guía de Despliegue](./DEPLOY.md).
+Esta aplicación se despliega en **dos proyectos separados** en Vercel:
+- **Backend**: API Express con generación de PDFs
+- **Frontend**: Aplicación React con Vite
+
+Para instrucciones detalladas paso a paso, consulta la [Guía de Despliegue](./DEPLOY.md).
+
+### Resumen Rápido:
+1. Despliega el backend (Root Directory: `backend`)
+2. Despliega el frontend (Root Directory: `frontend`)
+3. Configura `VITE_API_URL` en el frontend con la URL del backend
 
 ## 📝 Uso
 
