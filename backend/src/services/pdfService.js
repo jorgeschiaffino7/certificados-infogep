@@ -21,11 +21,27 @@ class PDFService {
       const chromium = require('@sparticuz/chromium');
       const puppeteerCore = require('puppeteer-core');
       
+      // Configurar chromium para serverless
+      chromium.setHeadlessMode = true;
+      chromium.setGraphicsMode = false;
+      
+      // Argumentos adicionales para compatibilidad con Vercel
+      const args = [
+        ...chromium.args,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--single-process',
+        '--no-zygote'
+      ];
+      
       return await puppeteerCore.launch({
-        args: chromium.args,
+        args: args,
         defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
+        headless: true,
+        ignoreHTTPSErrors: true,
       });
     } else {
       // En desarrollo local: usar puppeteer completo

@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "src/index.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
     }
   ],
   "routes": [
@@ -11,5 +14,14 @@
       "src": "/(.*)",
       "dest": "src/index.js"
     }
-  ]
+  ],
+  "env": {
+    "AWS_LAMBDA_JS_RUNTIME": "nodejs20.x"
+  },
+  "functions": {
+    "src/index.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  }
 }
