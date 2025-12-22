@@ -1,24 +1,40 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-// Configuración para Vercel (usa chromium) o desarrollo local (usa puppeteer)
-let puppeteer;
-let chrome;
-
-if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-  // En Vercel, usa chrome-aws-lambda
-  chrome = require('@sparticuz/chromium');
-  puppeteer = require('puppeteer-core');
-} else {
-  // En desarrollo local, usa puppeteer completo
-  puppeteer = require('puppeteer');
-}
+// Detectar si estamos en Vercel/producción
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 class PDFService {
   constructor() {
     this.templatePath = path.join(__dirname, '../templates/infogep-template.html');
     this.headerImagePath = path.join(__dirname, '../assets/logo-header.png');
     this.firmaImagePath = path.join(__dirname, '../assets/firma.png');
+  }
+
+  /**
+   * Obtiene el browser de Puppeteer según el entorno
+   * @returns {Promise<Browser>} - Instancia del browser
+   */
+  async getBrowser() {
+    if (isServerless) {
+      // En Vercel/Lambda: usar @sparticuz/chromium + puppeteer-core
+      const chromium = require('@sparticuz/chromium');
+      const puppeteerCore = require('puppeteer-core');
+      
+      return await puppeteerCore.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+      });
+    } else {
+      // En desarrollo local: usar puppeteer completo
+      const puppeteer = require('puppeteer');
+      return await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+    }
   }
 
   /**
@@ -57,6 +73,7 @@ class PDFService {
    * @returns {Buffer} - Buffer del PDF generado
    */
   async generateCertificate(datos) {
+    let browser;
     try {
       // Leer el template HTML
       let template = await fs.readFile(this.templatePath, 'utf-8');
@@ -68,31 +85,15 @@ class PDFService {
       // Reemplazar variables en el template
       template = this.replaceTemplateVariables(template, datos, headerImageBase64, firmaImageBase64);
       
-      // Generar PDF con Puppeteer
-      let browser;
-      
-      if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-        // Configuración para Vercel
-        browser = await puppeteer.launch({
-          args: chrome.args,
-          defaultViewport: chrome.defaultViewport,
-          executablePath: await chrome.executablePath(),
-          headless: chrome.headless,
-        });
-      } else {
-        // Configuración para desarrollo local
-        browser = await puppeteer.launch({
-          headless: 'new',
-          args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-      }
+      // Obtener browser según el entorno
+      browser = await this.getBrowser();
       
       const page = await browser.newPage();
       await page.setContent(template, { waitUntil: 'networkidle0' });
       
       const pdf = await page.pdf({
         format: 'A4',
-        landscape: false, // Vertical para este template
+        landscape: false,
         printBackground: true,
         margin: {
           top: '20mm',
@@ -107,6 +108,10 @@ class PDFService {
       return pdf;
       
     } catch (error) {
+      // Asegurar que el browser se cierre en caso de error
+      if (browser) {
+        await browser.close().catch(() => {});
+      }
       throw new Error(`Error al generar PDF: ${error.message}`);
     }
   }
