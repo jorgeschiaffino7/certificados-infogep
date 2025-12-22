@@ -18,30 +18,14 @@ class PDFService {
   async getBrowser() {
     if (isServerless) {
       // En Vercel/Lambda: usar @sparticuz/chromium + puppeteer-core
+      // Configuración EXACTA recomendada para Vercel
       const chromium = require('@sparticuz/chromium');
-      const puppeteerCore = require('puppeteer-core');
+      const puppeteer = require('puppeteer-core');
       
-      // Configurar chromium para serverless
-      chromium.setHeadlessMode = true;
-      chromium.setGraphicsMode = false;
-      
-      // Argumentos adicionales para compatibilidad con Vercel
-      const args = [
-        ...chromium.args,
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--single-process',
-        '--no-zygote'
-      ];
-      
-      return await puppeteerCore.launch({
-        args: args,
-        defaultViewport: chromium.defaultViewport,
+      return await puppeteer.launch({
+        args: chromium.args,
         executablePath: await chromium.executablePath(),
-        headless: true,
-        ignoreHTTPSErrors: true,
+        headless: chromium.headless,
       });
     } else {
       // En desarrollo local: usar puppeteer completo
