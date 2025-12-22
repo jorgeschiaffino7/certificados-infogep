@@ -1,11 +1,11 @@
 const excelService = require('../services/excelService');
 const pdfService = require('../services/pdfService');
 const zipService = require('../services/zipService');
-const path = require('path');
 
 class CertificateController {
   /**
    * Genera certificados masivos desde un archivo Excel
+   * Compatible con Vercel Serverless (usa buffers en memoria)
    */
   async generateCertificates(req, res) {
     try {
@@ -29,8 +29,8 @@ class CertificateController {
       console.log('📚 Curso:', nombreCurso);
       console.log('📅 Fecha del curso:', fechaCurso);
 
-      // 1. Leer y parsear el Excel
-      const personas = excelService.parseExcelFile(req.file.path);
+      // 1. Leer y parsear el Excel desde buffer (compatible con serverless)
+      const personas = excelService.parseExcelFromBuffer(req.file.buffer);
       console.log(`👥 Se encontraron ${personas.length} personas`);
 
       // 2. Generar PDFs para cada persona
@@ -57,21 +57,16 @@ class CertificateController {
         });
       }
 
-      // 3. Crear ZIP con todos los certificados
-      const zipPath = path.join('temp', `constancias_${Date.now()}.zip`);
-      await zipService.createZipWithCertificates(certificados, zipPath);
+      // 3. Crear ZIP en memoria (compatible con serverless)
+      const zipBuffer = await zipService.createZipInMemory(certificados);
       
       console.log('✅ Certificados generados exitosamente');
 
-      // 4. Enviar el ZIP al cliente
-      res.download(zipPath, 'constancias_infogep.zip', async (err) => {
-        // Eliminar el ZIP temporal después de enviarlo
-        await zipService.deleteFile(zipPath);
-        
-        if (err) {
-          console.error('Error al enviar archivo:', err);
-        }
-      });
+      // 4. Enviar el ZIP directamente como buffer
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="constancias_infogep.zip"');
+      res.setHeader('Content-Length', zipBuffer.length);
+      res.send(zipBuffer);
 
     } catch (error) {
       console.error('❌ Error:', error);

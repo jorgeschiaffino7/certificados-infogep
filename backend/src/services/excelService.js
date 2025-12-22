@@ -1,16 +1,16 @@
 const XLSX = require('xlsx');
-const fs = require('fs');
 
 class ExcelService {
   /**
-   * Lee un archivo Excel y extrae los datos de asistentes
-   * @param {string} filePath - Ruta del archivo Excel
+   * Lee un archivo Excel desde un buffer y extrae los datos de asistentes
+   * Compatible con Vercel Serverless (memoryStorage)
+   * @param {Buffer} buffer - Buffer del archivo Excel
    * @returns {Array} - Array de objetos con datos de personas
    */
-  parseExcelFile(filePath) {
+  parseExcelFromBuffer(buffer) {
     try {
-      // Leer el archivo
-      const workbook = XLSX.readFile(filePath);
+      // Leer el archivo desde buffer (compatible con serverless)
+      const workbook = XLSX.read(buffer, { type: 'buffer' });
       
       // Obtener la primera hoja
       const sheetName = workbook.SheetNames[0];
@@ -41,29 +41,10 @@ class ExcelService {
         };
       });
       
-      // Eliminar el archivo temporal después de leerlo
-      this.deleteFile(filePath);
-      
       return normalizedData;
       
     } catch (error) {
-      // Eliminar archivo en caso de error
-      this.deleteFile(filePath);
       throw new Error(`Error al procesar Excel: ${error.message}`);
-    }
-  }
-  
-  /**
-   * Elimina un archivo del sistema
-   * @param {string} filePath - Ruta del archivo a eliminar
-   */
-  deleteFile(filePath) {
-    try {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    } catch (error) {
-      console.error('Error al eliminar archivo:', error);
     }
   }
 }

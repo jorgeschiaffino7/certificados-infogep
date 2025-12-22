@@ -1,34 +1,34 @@
 const archiver = require('archiver');
-const fs = require('fs');
-const path = require('path');
 
 class ZipService {
   /**
-   * Crea un archivo ZIP con múltiples PDFs
+   * Crea un archivo ZIP en memoria con múltiples PDFs
+   * Compatible con Vercel Serverless (no usa sistema de archivos)
    * @param {Array} certificados - Array de objetos con {nombre, buffer}
-   * @param {string} outputPath - Ruta donde guardar el ZIP
-   * @returns {Promise} - Promesa que se resuelve cuando el ZIP está listo
+   * @returns {Promise<Buffer>} - Promesa que se resuelve con el buffer del ZIP
    */
-  async createZipWithCertificates(certificados, outputPath) {
+  async createZipInMemory(certificados) {
     return new Promise((resolve, reject) => {
-      // Crear stream de escritura
-      const output = fs.createWriteStream(outputPath);
+      const chunks = [];
+      
       const archive = archiver('zip', {
         zlib: { level: 9 } // Máxima compresión
       });
 
-      // Escuchar eventos
-      output.on('close', () => {
-        console.log(`ZIP creado: ${archive.pointer()} bytes`);
-        resolve(outputPath);
+      // Recolectar chunks en memoria
+      archive.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+
+      archive.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        console.log(`ZIP creado en memoria: ${buffer.length} bytes`);
+        resolve(buffer);
       });
 
       archive.on('error', (err) => {
         reject(err);
       });
-
-      // Pipe del archivo
-      archive.pipe(output);
 
       // Agregar cada certificado al ZIP
       certificados.forEach(cert => {
@@ -38,20 +38,6 @@ class ZipService {
       // Finalizar el archivo
       archive.finalize();
     });
-  }
-
-  /**
-   * Elimina archivo temporal
-   * @param {string} filePath - Ruta del archivo a eliminar
-   */
-  async deleteFile(filePath) {
-    try {
-      if (fs.existsSync(filePath)) {
-        await fs.promises.unlink(filePath);
-      }
-    } catch (error) {
-      console.error('Error al eliminar archivo:', error);
-    }
   }
 }
 
