@@ -1,69 +1,23 @@
+const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs').promises;
 const path = require('path');
 
-// Detectar si estamos en Vercel/producción
-const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
-
 class PDFService {
   constructor() {
-    this.templatePath = path.join(__dirname, '../templates/infogep-template.html');
-    this.headerImagePath = path.join(__dirname, '../assets/logo-header.png');
-    this.firmaImagePath = path.join(__dirname, '../assets/firma.png');
+    this.logoPath = path.join(__dirname, '../assets/logo-header.png');
+    this.firmaPath = path.join(__dirname, '../assets/firma.png');
   }
 
   /**
-   * Obtiene el browser de Puppeteer según el entorno
-   * @returns {Promise<Browser>} - Instancia del browser
+   * Carga una imagen PNG y la embebe en el documento PDF
    */
-  async getBrowser() {
-    if (isServerless) {
-      // En Vercel/Lambda: usar @sparticuz/chromium + puppeteer-core
-      // Configuración EXACTA recomendada para Vercel
-      const chromium = require('@sparticuz/chromium');
-      const puppeteer = require('puppeteer-core');
-      
-      return await puppeteer.launch({
-        args: chromium.args,
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
-      });
-    } else {
-      // En desarrollo local: usar puppeteer completo
-      const puppeteer = require('puppeteer');
-      return await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
-    }
-  }
-
-  /**
-   * Convierte la imagen del header a base64
-   * @returns {string} - Imagen en formato base64
-   */
-  async getHeaderImageBase64() {
+  async embedImage(pdfDoc, imagePath) {
     try {
-      const imageBuffer = await fs.readFile(this.headerImagePath);
-      const base64Image = imageBuffer.toString('base64');
-      return `data:image/png;base64,${base64Image}`;
+      const imageBytes = await fs.readFile(imagePath);
+      return await pdfDoc.embedPng(imageBytes);
     } catch (error) {
-      console.warn('No se pudo cargar la imagen del header:', error.message);
-      return '';
-    }
-  }
-
-  /**
-   * Convierte la imagen de firma a base64
-   * @returns {string} - Imagen en formato base64
-   */
-  async getFirmaImageBase64() {
-    try {
-      const imageBuffer = await fs.readFile(this.firmaImagePath);
-      const base64Image = imageBuffer.toString('base64');
-      return `data:image/png;base64,${base64Image}`;
-    } catch (error) {
-      console.warn('No se pudo cargar la imagen de firma:', error.message);
-      return '';
+      console.warn(`No se pudo cargar imagen ${imagePath}:`, error.message);
+      return null;
     }
   }
 
@@ -73,89 +27,152 @@ class PDFService {
    * @returns {Buffer} - Buffer del PDF generado
    */
   async generateCertificate(datos) {
-    let browser;
-    try {
-      // Leer el template HTML
-      let template = await fs.readFile(this.templatePath, 'utf-8');
+    // Crear documento PDF
+    const pdfDoc = await PDFDocument.create();
+    
+    // Agregar página A4
+    const page = pdfDoc.addPage([595.28, 841.89]); // A4 en puntos
+    const { width, height } = page.getSize();
+    
+    // Cargar fuentes
+    const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+    const timesBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+    
+    // Cargar imágenes
+    const logoImage = await this.embedImage(pdfDoc, this.logoPath);
+    const firmaImage = await this.embedImage(pdfDoc, this.firmaPath);
+    
+    // Márgenes
+    const marginLeft = 60;
+    const marginRight = 60;
+    const contentWidth = width - marginLeft - marginRight;
+    
+    let yPosition = height - 60;
+    
+    // === LOGO ===
+    if (logoImage) {
+      const logoWidth = 300;
+      const logoHeight = (logoImage.height / logoImage.width) * logoWidth;
+      const logoX = (width - logoWidth) / 2;
       
-      // Obtener imágenes en base64
-      const headerImageBase64 = await this.getHeaderImageBase64();
-      const firmaImageBase64 = await this.getFirmaImageBase64();
-      
-      // Reemplazar variables en el template
-      template = this.replaceTemplateVariables(template, datos, headerImageBase64, firmaImageBase64);
-      
-      // Obtener browser según el entorno
-      browser = await this.getBrowser();
-      
-      const page = await browser.newPage();
-      await page.setContent(template, { waitUntil: 'networkidle0' });
-      
-      const pdf = await page.pdf({
-        format: 'A4',
-        landscape: false,
-        printBackground: true,
-        margin: {
-          top: '20mm',
-          right: '20mm',
-          bottom: '20mm',
-          left: '20mm'
-        }
+      page.drawImage(logoImage, {
+        x: logoX,
+        y: yPosition - logoHeight,
+        width: logoWidth,
+        height: logoHeight,
       });
       
-      await browser.close();
-      
-      return pdf;
-      
-    } catch (error) {
-      // Asegurar que el browser se cierre en caso de error
-      if (browser) {
-        await browser.close().catch(() => {});
-      }
-      throw new Error(`Error al generar PDF: ${error.message}`);
+      yPosition -= logoHeight + 40;
+    } else {
+      yPosition -= 80;
     }
-  }
-
-  /**
-   * Reemplaza las variables del template con los datos reales
-   * @param {string} template - HTML del template
-   * @param {Object} datos - Datos completos del certificado
-   * @param {string} headerImageBase64 - Imagen del header en formato base64
-   * @param {string} firmaImageBase64 - Imagen de la firma en formato base64
-   * @returns {string} - Template con datos reemplazados
-   */
-  replaceTemplateVariables(template, datos, headerImageBase64, firmaImageBase64) {
-    const fechaEmision = this.formatFechaEmision(datos.fechaEmision || new Date());
     
-    return template
-      .replace(/\{\{headerImage\}\}/g, headerImageBase64)
-      .replace(/\{\{firmaImage\}\}/g, firmaImageBase64)
-      .replace(/\{\{fechaEmision\}\}/g, fechaEmision)
-      .replace(/\{\{nombreCompleto\}\}/g, `${datos.nombre} ${datos.apellido}`)
-      .replace(/\{\{dni\}\}/g, datos.dni)
-      .replace(/\{\{nombreCurso\}\}/g, datos.nombreCurso)
-      .replace(/\{\{fechaCurso\}\}/g, datos.fechaCurso);
+    // === FECHA (alineada a la derecha) ===
+    const fechaEmision = this.formatFechaEmision(datos.fechaEmision || new Date());
+    const fechaText = `Posadas, ${fechaEmision}`;
+    const fechaWidth = timesRoman.widthOfTextAtSize(fechaText, 12);
+    
+    page.drawText(fechaText, {
+      x: width - marginRight - fechaWidth,
+      y: yPosition,
+      size: 12,
+      font: timesRoman,
+      color: rgb(0, 0, 0),
+    });
+    
+    yPosition -= 60;
+    
+    // === CONTENIDO PRINCIPAL ===
+    const fontSize = 12;
+    const lineHeight = 24;
+    
+    // Texto del certificado dividido en líneas
+    const nombreCompleto = `${datos.nombre} ${datos.apellido}`.toUpperCase();
+    
+    const lineas = [
+      { text: 'Por medio de la presente se deja constancia que el/la agente', font: timesRoman },
+      { text: nombreCompleto + ',', font: timesBold },
+      { text: `D.N.I "${datos.dni}" ha participado de la Capacitación:`, font: timesRoman, boldParts: [datos.dni] },
+      { text: datos.nombreCurso + ',', font: timesBold },
+      { text: 'dictada por el', font: timesRoman },
+      { text: 'INFOGEP - Instituto de Formación para la Gestión Pública,', font: timesBold },
+      { text: `el día ${datos.fechaCurso}.`, font: timesRoman, boldParts: [datos.fechaCurso] },
+    ];
+    
+    // Dibujar el párrafo principal
+    for (const linea of lineas) {
+      const textWidth = linea.font.widthOfTextAtSize(linea.text, fontSize);
+      const x = (width - textWidth) / 2; // Centrado
+      
+      page.drawText(linea.text, {
+        x: x,
+        y: yPosition,
+        size: fontSize,
+        font: linea.font,
+        color: rgb(0, 0, 0),
+      });
+      
+      yPosition -= lineHeight;
+    }
+    
+    yPosition -= 40;
+    
+    // === FOOTER ===
+    const footerText = 'Se extiende la presente constancia a los efectos de ser presentada';
+    const footerText2 = 'ante las autoridades que correspondan.';
+    
+    page.drawText(footerText, {
+      x: marginLeft,
+      y: yPosition,
+      size: fontSize,
+      font: timesRoman,
+      color: rgb(0, 0, 0),
+    });
+    
+    yPosition -= lineHeight;
+    
+    page.drawText(footerText2, {
+      x: marginLeft,
+      y: yPosition,
+      size: fontSize,
+      font: timesRoman,
+      color: rgb(0, 0, 0),
+    });
+    
+    // === FIRMA ===
+    if (firmaImage) {
+      const firmaWidth = 150;
+      const firmaHeight = (firmaImage.height / firmaImage.width) * firmaWidth;
+      const firmaX = width - marginRight - firmaWidth;
+      const firmaY = 120;
+      
+      page.drawImage(firmaImage, {
+        x: firmaX,
+        y: firmaY,
+        width: firmaWidth,
+        height: firmaHeight,
+      });
+    }
+    
+    // Generar bytes del PDF
+    const pdfBytes = await pdfDoc.save();
+    
+    return Buffer.from(pdfBytes);
   }
 
   /**
-   * Formatea la fecha de emisión en el formato requerido
-   * @param {Date|string} fecha - Fecha a formatear
-   * @returns {string} - Fecha formateada
+   * Formatea la fecha de emisión
    */
   formatFechaEmision(fecha) {
     const date = typeof fecha === 'string' ? new Date(fecha) : fecha;
-    
     const dia = date.getDate();
     const mes = this.getMesNombre(date.getMonth());
     const anio = date.getFullYear();
-    
     return `${dia} de ${mes}, ${anio}`;
   }
 
   /**
    * Obtiene el nombre del mes en español
-   * @param {number} mesIndex - Índice del mes (0-11)
-   * @returns {string} - Nombre del mes
    */
   getMesNombre(mesIndex) {
     const meses = [
@@ -167,8 +184,6 @@ class PDFService {
 
   /**
    * Genera el nombre del archivo PDF
-   * @param {Object} datos - Datos de la persona
-   * @returns {string} - Nombre del archivo
    */
   getFileName(datos) {
     const nombreLimpio = datos.nombre.replace(/\s+/g, '_');

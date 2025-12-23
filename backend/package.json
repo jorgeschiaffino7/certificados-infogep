@@ -15,14 +15,12 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "multer": "^2.0.1",
-    "puppeteer-core": "^23.4.0",
-    "@sparticuz/chromium": "^129.0.0",
+    "pdf-lib": "^1.17.1",
     "xlsx": "^0.18.5",
     "archiver": "^7.0.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11",
-    "puppeteer": "^23.4.0"
+    "nodemon": "^3.1.11"
   },
   "engines": {
     "node": ">=18.0.0"
