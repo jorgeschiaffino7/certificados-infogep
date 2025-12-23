@@ -89,7 +89,7 @@ class PDFService {
     const nombreCompleto = `${datos.nombre} ${datos.apellido}`.toUpperCase();
     
     // Construir el párrafo completo
-    const parrafo = `Por medio de la presente se deja constancia que el/la agente ${nombreCompleto}, D.N.I "${datos.dni}" ha participado de la Capacitación: "${datos.nombreCurso}", dictada por el INFOGEP - Instituto de Formación para la Gestión Pública, el día ${datos.fechaCurso}.`;
+    const parrafo = `Por medio de la presente se deja constancia que el/la agente ${nombreCompleto}, D.N.I ${datos.dni} ha participado de la Capacitación: "${datos.nombreCurso}", dictada por el INFOGEP - Instituto de Formación para la Gestión Pública, el día ${datos.fechaCurso}.`;
     
     // Función para dividir texto en líneas justificadas
     const wrapText = (text, maxWidth, font, size) => {
