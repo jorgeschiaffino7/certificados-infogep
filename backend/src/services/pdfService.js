@@ -150,27 +150,15 @@ class PDFService {
     
     yPosition -= 30;
     
-    // === FOOTER ===
-    const footerText = 'Se extiende la presente constancia a los efectos de ser presentada';
-    const footerText2 = 'ante las autoridades que correspondan.';
+    // === FOOTER (JUSTIFICADO) ===
+    const footerParrafo = 'Se extiende la presente constancia a los efectos de ser presentada ante las autoridades que correspondan.';
+    const footerLines = wrapText(footerParrafo, contentWidth, timesRoman, fontSize);
     
-    page.drawText(footerText, {
-      x: marginLeft,
-      y: yPosition,
-      size: fontSize,
-      font: timesRoman,
-      color: rgb(0, 0, 0),
-    });
-    
-    yPosition -= lineHeight;
-    
-    page.drawText(footerText2, {
-      x: marginLeft,
-      y: yPosition,
-      size: fontSize,
-      font: timesRoman,
-      color: rgb(0, 0, 0),
-    });
+    for (let i = 0; i < footerLines.length; i++) {
+      const isLastLine = i === footerLines.length - 1;
+      drawJustifiedLine(footerLines[i], marginLeft, yPosition, contentWidth, timesRoman, fontSize, isLastLine);
+      yPosition -= lineHeight;
+    }
     
     // === FIRMA ===
     if (firmaImage) {
