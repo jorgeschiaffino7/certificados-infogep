@@ -82,40 +82,73 @@ class PDFService {
     
     yPosition -= 60;
     
-    // === CONTENIDO PRINCIPAL ===
+    // === CONTENIDO PRINCIPAL (JUSTIFICADO) ===
     const fontSize = 12;
-    const lineHeight = 24;
+    const lineHeight = 22;
     
-    // Texto del certificado dividido en líneas
     const nombreCompleto = `${datos.nombre} ${datos.apellido}`.toUpperCase();
     
-    const lineas = [
-      { text: 'Por medio de la presente se deja constancia que el/la agente', font: timesRoman },
-      { text: nombreCompleto + ',', font: timesBold },
-      { text: `D.N.I "${datos.dni}" ha participado de la Capacitación:`, font: timesRoman, boldParts: [datos.dni] },
-      { text: datos.nombreCurso + ',', font: timesBold },
-      { text: 'dictada por el', font: timesRoman },
-      { text: 'INFOGEP - Instituto de Formación para la Gestión Pública,', font: timesBold },
-      { text: `el día ${datos.fechaCurso}.`, font: timesRoman, boldParts: [datos.fechaCurso] },
-    ];
+    // Construir el párrafo completo
+    const parrafo = `Por medio de la presente se deja constancia que el/la agente ${nombreCompleto}, D.N.I "${datos.dni}" ha participado de la Capacitación: "${datos.nombreCurso}", dictada por el INFOGEP - Instituto de Formación para la Gestión Pública, el día ${datos.fechaCurso}.`;
     
-    // Dibujar el párrafo principal
-    for (const linea of lineas) {
-      const textWidth = linea.font.widthOfTextAtSize(linea.text, fontSize);
-      const x = (width - textWidth) / 2; // Centrado
+    // Función para dividir texto en líneas justificadas
+    const wrapText = (text, maxWidth, font, size) => {
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = '';
       
-      page.drawText(linea.text, {
-        x: x,
-        y: yPosition,
-        size: fontSize,
-        font: linea.font,
-        color: rgb(0, 0, 0),
-      });
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const testWidth = font.widthOfTextAtSize(testLine, size);
+        
+        if (testWidth > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      return lines;
+    };
+    
+    // Función para dibujar texto justificado
+    const drawJustifiedLine = (text, x, y, maxWidth, font, size, isLastLine = false) => {
+      if (isLastLine) {
+        // Última línea: alineada a la izquierda
+        page.drawText(text, { x, y, size, font, color: rgb(0, 0, 0) });
+        return;
+      }
       
+      const words = text.split(' ');
+      if (words.length === 1) {
+        page.drawText(text, { x, y, size, font, color: rgb(0, 0, 0) });
+        return;
+      }
+      
+      const textWidth = font.widthOfTextAtSize(text, size);
+      const totalSpaceWidth = maxWidth - textWidth + (font.widthOfTextAtSize(' ', size) * (words.length - 1));
+      const spaceWidth = totalSpaceWidth / (words.length - 1);
+      
+      let currentX = x;
+      for (let i = 0; i < words.length; i++) {
+        page.drawText(words[i], { x: currentX, y, size, font, color: rgb(0, 0, 0) });
+        currentX += font.widthOfTextAtSize(words[i], size) + spaceWidth;
+      }
+    };
+    
+    // Dividir y dibujar el párrafo justificado
+    const lines = wrapText(parrafo, contentWidth, timesRoman, fontSize);
+    
+    for (let i = 0; i < lines.length; i++) {
+      const isLastLine = i === lines.length - 1;
+      drawJustifiedLine(lines[i], marginLeft, yPosition, contentWidth, timesRoman, fontSize, isLastLine);
       yPosition -= lineHeight;
     }
     
-    yPosition -= 40;
+    yPosition -= 30;
     
     // === FOOTER ===
     const footerText = 'Se extiende la presente constancia a los efectos de ser presentada';
