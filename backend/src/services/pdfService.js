@@ -194,13 +194,17 @@ class PDFService {
   }
 
   /**
-   * Formatea la fecha de emisión
+   * Formatea la fecha de emisión usando zona horaria de Argentina
    */
   formatFechaEmision(fecha) {
     const date = typeof fecha === 'string' ? new Date(fecha) : fecha;
-    const dia = date.getDate();
-    const mes = this.getMesNombre(date.getMonth());
-    const anio = date.getFullYear();
+    
+    // Ajustar a zona horaria de Argentina (GMT-3)
+    const argentinaDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    
+    const dia = argentinaDate.getDate();
+    const mes = this.getMesNombre(argentinaDate.getMonth());
+    const anio = argentinaDate.getFullYear();
     return `${dia} de ${mes}, ${anio}`;
   }
 
